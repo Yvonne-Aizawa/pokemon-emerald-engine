@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-enum { PB_MAX_EVENTS = 5, PB_MAX_HP = 100 };
+enum { PB_MAX_EVENTS = 12, PB_MAX_HP = 100 };
 
 struct pb_battle {
     uint64_t rng;
@@ -68,6 +68,24 @@ static int has_move(const pb_battler *battler, uint32_t move_id)
     return 0;
 }
 
+static unsigned choose_first(pb_battle *battle, const pb_action *actions,
+                             uint32_t count)
+{
+    if (count < 2)
+        return 0;
+    const struct pb_move_data *a = pb_move(actions[0].move_id);
+    const struct pb_move_data *b = pb_move(actions[1].move_id);
+    int pa = a != NULL ? a->priority : -128;
+    int pb = b != NULL ? b->priority : -128;
+    if (pa != pb)
+        return pa > pb ? 0u : 1u;
+    uint16_t sa = battle->battlers[actions[0].actor].stats[PB_STAT_SPEED];
+    uint16_t sb = battle->battlers[actions[1].actor].stats[PB_STAT_SPEED];
+    if (sa != sb)
+        return sa > sb ? 0u : 1u;
+    return next_random(battle) & 1u;
+}
+
 pb_battle *pb_battle_create(const pb_battle_config *config)
 {
     if (config == NULL || config->struct_size < sizeof(*config) ||
@@ -103,8 +121,8 @@ void pb_battle_destroy(pb_battle *battle)
     free(battle);
 }
 
-pb_step_result pb_step(pb_battle *battle, const pb_action *actions,
-                       uint32_t action_count)
+static pb_step_result resolve_action(pb_battle *battle, const pb_action *actions,
+                                     uint32_t action_count)
 {
     static const pb_step_result invalid = { sizeof(pb_step_result),
                                              PB_STEP_FINISHED, 0, NULL };
@@ -112,7 +130,6 @@ pb_step_result pb_step(pb_battle *battle, const pb_action *actions,
         battle->battlers[0].current_hp == 0 || battle->battlers[1].current_hp == 0)
         return invalid;
 
-    battle->event_count = 0;
     const pb_action action = actions[0];
     if (action.kind != PB_ACTION_MOVE || action.actor > 1 || action.target > 1 ||
         action.actor == action.target)
@@ -165,4 +182,27 @@ pb_step_result pb_step(pb_battle *battle, const pb_action *actions,
                                                          : PB_STEP_EVENTS;
     return (pb_step_result){ sizeof(pb_step_result), kind, battle->event_count,
                              battle->events };
+}
+
+pb_step_result pb_step(pb_battle *battle, const pb_action *actions,
+                       uint32_t action_count)
+{
+    static const pb_step_result invalid = { sizeof(pb_step_result),
+                                             PB_STEP_FINISHED, 0, NULL };
+    if (battle == NULL || actions == NULL || action_count == 0)
+        return invalid;
+
+    battle->event_count = 0;
+    if (action_count == 1)
+        return resolve_action(battle, actions, 1);
+
+    const unsigned first = choose_first(battle, actions, action_count);
+    const unsigned second = first ^ 1u;
+    emit(battle, PB_EVENT_ACTION_ORDER, actions[first].actor,
+         actions[second].actor, 0, actions[first].move_id);
+    pb_step_result result = resolve_action(battle, &actions[first], 1);
+    if (result.kind == PB_STEP_FINISHED)
+        return result;
+    result = resolve_action(battle, &actions[second], 1);
+    return result;
 }

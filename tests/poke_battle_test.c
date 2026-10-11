@@ -66,6 +66,21 @@ int main(void)
     pb_battle_destroy(first);
     pb_battle_destroy(second);
 
+    pb_battle *turn = pb_battle_create(&config);
+    const pb_action actions[2] = {
+        { .kind = PB_ACTION_MOVE, .actor = 0, .move_id = 1, .target = 1 },
+        { .kind = PB_ACTION_MOVE, .actor = 1, .move_id = 33, .target = 0 },
+    };
+    pb_step_result turn_result = pb_step(turn, actions, 2);
+    assert(turn_result.count >= 5);
+    assert(turn_result.events[0].kind == PB_EVENT_ACTION_ORDER);
+    unsigned move_events = 0;
+    for (uint32_t i = 0; i < turn_result.count; ++i)
+        if (turn_result.events[i].kind == PB_EVENT_MOVE_USED)
+            ++move_events;
+    assert(move_events == 2);
+    pb_battle_destroy(turn);
+
     pb_battle *neutral = make_battle(52, 0); /* Fire -> Normal. */
     pb_battle *super = make_battle(52, 4);   /* Fire -> Grass. */
     pb_battle *immune = make_battle(1, 13);  /* Normal -> Ghost. */

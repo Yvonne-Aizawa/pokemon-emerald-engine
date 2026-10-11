@@ -13,10 +13,10 @@ static const struct pb_species_data species[] = {
 /* Imported from upstream src/data/moves_info.h. Pound is move 1. Tackle is
    move 33; its 40 power is the current upstream data configuration. */
 static const struct pb_move_data moves[] = {
-    { .id = 1, .power = 40, .type = 0, .accuracy = 100, .crit_stage = 0 },
-    { .id = 22, .power = 35, .type = 4, .accuracy = 100, .crit_stage = 0 },
-    { .id = 33, .power = 40, .type = 0, .accuracy = 95, .crit_stage = 0 },
-    { .id = 52, .power = 40, .type = 1, .accuracy = 100, .crit_stage = 0 },
+    { .id = 1, .power = 40, .type = 0, .accuracy = 100, .crit_stage = 0, .priority = 0 },
+    { .id = 22, .power = 35, .type = 4, .accuracy = 100, .crit_stage = 0, .priority = 0 },
+    { .id = 33, .power = 40, .type = 0, .accuracy = 95, .crit_stage = 0, .priority = 0 },
+    { .id = 52, .power = 40, .type = 1, .accuracy = 100, .crit_stage = 0, .priority = 0 },
 };
 
 const struct pb_species_data *pb_species(uint16_t id)
