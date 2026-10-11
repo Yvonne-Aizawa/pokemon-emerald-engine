@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-enum { PB_MAX_EVENTS = 4, PB_MAX_HP = 100 };
+enum { PB_MAX_EVENTS = 5, PB_MAX_HP = 100 };
 
 struct pb_battle {
     uint64_t rng;
@@ -125,11 +125,23 @@ pb_step_result pb_step(pb_battle *battle, const pb_action *actions,
     if (move_data == NULL || !has_move(attacker_state, action.move_id))
         return (pb_step_result){ sizeof(pb_step_result), PB_STEP_NEEDS_ACTION,
                                  0, battle->events };
-    /* Small, integer-only physical damage slice derived from the upstream
-       damage model: power, attack, defense, random factor, minimum 1. */
-    uint32_t damage = ((2u * 50u / 5u + 2u) * move_data->power *
+    emit(battle, PB_EVENT_MOVE_USED, action.actor, action.target, 0,
+         action.move_id);
+    if (next_random(battle) % 100u >= move_data->accuracy) {
+        emit(battle, PB_EVENT_MISSED, action.actor, action.target, 0,
+             action.move_id);
+        battle->turn++;
+        return (pb_step_result){ sizeof(pb_step_result), PB_STEP_EVENTS,
+                                 battle->event_count, battle->events };
+    }
+    const int critical = next_random(battle) % 16u == 0;
+    const uint32_t level = attacker_state->level;
+    /* Integer-only physical damage slice derived from the upstream model. */
+    uint32_t damage = ((2u * level / 5u + 2u) * move_data->power *
                        attacker_state->stats[PB_STAT_ATTACK] /
                        defender_state->stats[PB_STAT_DEFENSE]) / 50u + 2u;
+    if (critical)
+        damage = damage * 2u;
     damage = damage * (217u + (next_random(battle) % 39u)) / 255u;
     if (move_data->type == attacker_state->types[0] ||
         move_data->type == attacker_state->types[1])
@@ -140,8 +152,9 @@ pb_step_result pb_step(pb_battle *battle, const pb_action *actions,
     const uint32_t actual = damage > defender_state->current_hp
                                 ? defender_state->current_hp : damage;
     battle->battlers[action.target].current_hp -= actual;
-    emit(battle, PB_EVENT_MOVE_USED, action.actor, action.target, 0,
-         action.move_id);
+    if (critical)
+        emit(battle, PB_EVENT_CRITICAL, action.actor, action.target, 0,
+             action.move_id);
     emit(battle, PB_EVENT_DAMAGE, action.actor, action.target,
          -(int32_t)actual, action.move_id);
     if (defender_state->current_hp == 0)

@@ -20,6 +20,8 @@ enum {
     PB_EVENT_MOVE_USED = 1u,
     PB_EVENT_DAMAGE = 2u,
     PB_EVENT_BATTLE_FINISHED = 3u,
+    PB_EVENT_MISSED = 4u,
+    PB_EVENT_CRITICAL = 5u,
 };
 
 typedef struct pb_battle pb_battle;

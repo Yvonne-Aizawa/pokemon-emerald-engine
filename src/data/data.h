@@ -14,6 +14,8 @@ struct pb_move_data {
     uint16_t id;
     uint16_t power;
     uint16_t type;
+    uint8_t accuracy;
+    uint8_t crit_stage;
 };
 
 const struct pb_species_data *pb_species(uint16_t id);
