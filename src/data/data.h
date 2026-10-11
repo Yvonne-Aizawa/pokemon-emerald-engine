@@ -13,6 +13,7 @@ struct pb_species_data {
 struct pb_move_data {
     uint16_t id;
     uint16_t power;
+    uint16_t type;
 };
 
 const struct pb_species_data *pb_species(uint16_t id);

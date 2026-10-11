@@ -37,6 +37,29 @@ static void emit(pb_battle *battle, uint32_t kind, uint32_t actor,
     };
 }
 
+/* Gen 3 type IDs. The compact table covers the type interactions used by the
+   imported move/species slice and defaults to neutral. */
+static uint32_t type_effectiveness(uint16_t move_type, uint16_t target_type)
+{
+    if (move_type == 0 && target_type == 13) /* Normal -> Ghost. */
+        return 0;
+    if (move_type == 1 && target_type == 4) /* Fire -> Grass. */
+        return 20;
+    if (move_type == 1 && target_type == 1) /* Fire -> Fire. */
+        return 5;
+    if (move_type == 4 && target_type == 1) /* Grass -> Fire. */
+        return 5;
+    return 10;
+}
+
+static uint32_t type_multiplier(uint16_t move_type, const pb_battler *target)
+{
+    uint32_t multiplier = 10;
+    for (unsigned i = 0; i < 2; ++i)
+        multiplier = multiplier * type_effectiveness(move_type, target->types[i]) / 10;
+    return multiplier;
+}
+
 static int has_move(const pb_battler *battler, uint32_t move_id)
 {
     for (unsigned i = 0; i < PB_MOVE_SLOTS; ++i)
@@ -108,7 +131,11 @@ pb_step_result pb_step(pb_battle *battle, const pb_action *actions,
                        attacker_state->stats[PB_STAT_ATTACK] /
                        defender_state->stats[PB_STAT_DEFENSE]) / 50u + 2u;
     damage = damage * (217u + (next_random(battle) % 39u)) / 255u;
-    if (damage == 0)
+    if (move_data->type == attacker_state->types[0] ||
+        move_data->type == attacker_state->types[1])
+        damage = damage * 15u / 10u;
+    damage = damage * type_multiplier(move_data->type, defender_state) / 10u;
+    if (damage == 0 && type_multiplier(move_data->type, defender_state) != 0)
         damage = 1;
     const uint32_t actual = damage > defender_state->current_hp
                                 ? defender_state->current_hp : damage;
